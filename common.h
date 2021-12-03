@@ -3,10 +3,10 @@
 #include <stdlib.h>
 
 #ifdef DEBUG
-#  include <stdio.h>
-#  define debug(...) ((void)fprintf(stderr, __VA_ARGS__))
+#include <stdio.h>
+#define debug(...) ((void)fprintf(stderr, __VA_ARGS__))
 #else
-#  define debug(...) ((void)0)
+#define debug(...) ((void)0)
 #endif
 
 /* function to retrieve info about the globally allocated memory zone */
