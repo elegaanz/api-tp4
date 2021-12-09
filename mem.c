@@ -110,23 +110,23 @@ void *mem_alloc(size_t taille) {
 void mem_free(void *mem) {
 
     struct fb *firstBlock = get_list();
-    size_t adr = mem - sizeof(size_t);
+    size_t adr = (size_t) mem - sizeof(size_t);
     struct fb *nextBlock;
 
-    if(firstBlock == adr)
+    if(firstBlock == (struct fb*) adr)
     {
-        firstblock->taille = get_total_size(firstblock);
+        firstBlock->size = get_total_size(firstBlock);
         return;
     }
 
-    while ((firstBlock->next != adr) && (firstBlock->next != NULL)){
+    while ((firstBlock->next != (struct fb*)adr) && (firstBlock->next != NULL)){
         firstBlock = firstBlock->next;
     }
 
     nextBlock = firstBlock->next;
-    struct fb *nextBlock = firstBlock->next;
-    firstBlock->taille = firstBlock->taille + get_total_size(nextblock) + sizeof(struct fb);
-    firstBlock->next = nextblock->next;
+    nextBlock = firstBlock->next;
+    firstBlock->size = firstBlock->size + get_total_size(nextBlock) + sizeof(struct fb);
+    firstBlock->next = nextBlock->next;
 }
 
 struct fb *mem_fit_first(struct fb *list, size_t size) {
