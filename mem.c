@@ -62,7 +62,7 @@ size_t get_total_size(struct fb *block) {
     if (block->next != NULL) {
         return block->next - block + sizeof(struct fb);
     } else {
-        return (get_system_memory_addr() + get_system_memory_size()) - block + sizeof(struct fb);
+        return ((size_t)get_system_memory_addr() + get_system_memory_size()) - (size_t)block + sizeof(struct fb);
     }
 }
 
