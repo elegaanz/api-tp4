@@ -59,7 +59,11 @@ struct fb *get_list() {
 
 /// Renvoie la taille totale (alloué + pas alloué) de ce bloc
 size_t get_total_size(struct fb *block) {
-    return block->next - block + sizeof(struct fb);
+    if (block->next != NULL) {
+        return block->next - block + sizeof(struct fb);
+    } else {
+        return (get_system_memory_addr() + get_system_memory_size()) - block + sizeof(struct fb);
+    }
 }
 
 void mem_init(void *mem, size_t taille) {
@@ -123,11 +127,8 @@ struct fb *mem_fit_first(struct fb *list, size_t size) {
  * (ou en discuter avec l'enseignant)
  */
 size_t mem_get_size(void *zone) {
-    /* zone est une adresse qui a été retournée par mem_alloc() */
-
-    /* la valeur retournée doit être la taille maximale que
-     * l'utilisateur peut utiliser dans cette zone */
-    return 0;
+    struct fb *block = zone - sizeof(struct fb);
+    return get_total_size(block);
 }
 
 /* Fonctions facultatives
