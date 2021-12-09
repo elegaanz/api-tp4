@@ -46,10 +46,21 @@ static inline size_t get_system_memory_size() {
 }
 
 struct fb {
+    /// La taille de l'espace libre en octets
+    /// La taille du free block lui-même n'est pas comprise
     size_t size;
     struct fb *next;
-    /* ... */
 };
+
+/// Renvoie la tête de la liste des free blocks
+struct fb *get_list() {
+    return memory_addr + sizeof(struct allocator_header);
+}
+
+/// Renvoie la taille totale (alloué + pas alloué) de ce bloc
+size_t get_total_size(struct fb *block) {
+    return block->next - block + sizeof(struct fb);
+}
 
 void mem_init(void *mem, size_t taille) {
     memory_addr = mem;
@@ -59,28 +70,37 @@ void mem_init(void *mem, size_t taille) {
      */
     assert(mem == get_system_memory_addr());
     assert(taille == get_system_memory_size());
-    /* ... */
     mem_fit(&mem_fit_first);
+
+    // On initialise le premier free block
+    struct fb *head = get_list();
+    head->size = taille - sizeof(struct allocator_header) - sizeof(struct fb);
+    head->next = NULL;
 }
 
 void mem_show(void (*print)(void *, size_t, int)) {
-    /* ... */
-    while (/* ... */ 0) {
-        /* ... */
-        print(/* ... */ NULL, /* ... */ 0, /* ... */ 0);
-        /* ... */
+    struct fb *block = get_list();
+    while (block != NULL) {
+        print(block, block->size, block->size == get_total_size(block));
+        block = block->next;
     }
 }
 
 void mem_fit(mem_fit_function_t *f) { get_header()->fit = f; }
 
 void *mem_alloc(size_t taille) {
-    /* ... */
-    __attribute__((
-        unused)) /* juste pour que gcc compile ce squelette avec -Werror */
-    struct fb *fb = get_header()->fit(/*...*/ NULL, /*...*/ 0);
-    /* ... */
-    return NULL;
+    struct fb *b = get_header()->fit(get_list(), taille);
+    if (b == NULL) {
+        return NULL;
+    }
+
+    // TODO: align the new fb
+    struct fb *new_fb = b + sizeof(fb) + taille;
+    new_fb->taille = b->taille - taille - sizeof(fb);
+    new_fb->next = NULL;
+    b->next = new_fb;
+
+    return fb + sizeof(struct fb);
 }
 
 void mem_free(void *mem) {}
