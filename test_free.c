@@ -22,28 +22,29 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < NB_TESTS; i++) {
         debug("\nInitializing memory\n");
         mem_init(get_memory_adr(), get_memory_size());
-        mem_show(p);
         debug("Allocating %d bytes\n", 100 * i);
         void *ptr = mem_alloc(100 * i);
         mem_free(ptr);
-        mem_show(p);
     }
 
-    printf("memoire avant p1\n");
-    mem_show(p);
-    void *ptr1 = mem_alloc(64);
-    printf("memoire apres p1\n");
-    mem_show(p);
-    void *ptr2 = mem_alloc(64);
-    printf("memoire apres p2\n");
-    mem_show(p);
-    void *ptr3 = mem_alloc(64);
-    printf("memoire apres p3\n");
-    mem_show(p);
+    int *ptr1 = mem_alloc(64);
+    int *ptr2 = mem_alloc(64);
+    int *ptr3 = mem_alloc(64);
     mem_free(ptr3);
     mem_free(ptr2);
     mem_free(ptr1);
 
+    ptr1 = mem_alloc(64);
+    *ptr1 = 42;
+    ptr2 = mem_alloc(64);
+    *ptr2 = 86;
+    ptr3 = mem_alloc(64);
+    *ptr3 = 651;
+    mem_free(ptr2);
+    mem_free(ptr1);
+    ptr2 = mem_alloc(64);
+    printf("%d %d %d\n", *ptr1, *ptr2, *ptr3);
+    mem_free(ptr3);
     // TEST OK
     return 0;
 }

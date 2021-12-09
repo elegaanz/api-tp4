@@ -104,7 +104,7 @@ void *mem_alloc(size_t taille) {
     void *end_address = get_system_memory_addr() + get_system_memory_size();
     if (new_fb + sizeof(struct fb) < (struct fb*)end_address) {
         new_fb->size = b->size - taille - sizeof(struct fb);
-        b->size = taille;
+        b->size = 0;
         new_fb->next = b->next;
         b->next = new_fb;
     } else {
