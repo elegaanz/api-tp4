@@ -100,11 +100,19 @@ void *mem_alloc(size_t taille) {
 
     // TODO: align the new fb
     struct fb *new_fb = b + sizeof(struct fb) + taille;
-    new_fb->size = b->size - taille - sizeof(struct fb);
-    new_fb->next = NULL;
-    b->next = new_fb;
+    size_t old_size = b->size;
+    void *end_address = get_system_memory_addr() + get_system_memory_size();
+    if (new_fb + sizeof(struct fb) < (struct fb*)end_address) {
+        new_fb->size = b->size - taille - sizeof(struct fb);
+        b->size = taille;
+        new_fb->next = b->next;
+        b->next = new_fb;
+    } else {
+        b->size -= taille;
+        b->next = NULL;
+    }
 
-    return new_fb + sizeof(struct fb);
+    return b + old_size + sizeof(struct fb);
 }
 
 void mem_free(void *mem) {
@@ -124,9 +132,12 @@ void mem_free(void *mem) {
     }
 
     nextBlock = firstBlock->next;
-    nextBlock = firstBlock->next;
-    firstBlock->size = firstBlock->size + get_total_size(nextBlock) + sizeof(struct fb);
-    firstBlock->next = nextBlock->next;
+    if (nextBlock != NULL) {
+        firstBlock->size = get_total_size(firstBlock) + sizeof(struct fb);
+        firstBlock->next = nextBlock->next;
+    } else {
+        firstBlock->size = get_total_size(firstBlock);
+    }
 }
 
 struct fb *mem_fit_first(struct fb *list, size_t size) {

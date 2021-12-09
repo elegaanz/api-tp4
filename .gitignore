@@ -2,3 +2,5 @@
 .*.o.deps
 /memshell
 /test_init
+*.so
+test_free
