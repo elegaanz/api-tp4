@@ -106,6 +106,12 @@ void *mem_alloc(size_t taille) {
 void mem_free(void *mem) {}
 
 struct fb *mem_fit_first(struct fb *list, size_t size) {
+    while (list != NULL) {
+        if (list->size >= size) {
+            return list;
+        }
+        list = list->next;
+    }
     return NULL;
 }
 
@@ -128,9 +134,27 @@ size_t mem_get_size(void *zone) {
  * autres stratégies d'allocation
  */
 struct fb *mem_fit_best(struct fb *list, size_t size) {
-    return NULL;
+    struct fb *best = NULL;
+    while (list != NULL) {
+        if (list->size >= size) {
+            if (best == NULL || best->size > list->size) {
+                best = list;
+            }
+        }
+        list = list->next;
+    }
+    return best;
 }
 
 struct fb *mem_fit_worst(struct fb *list, size_t size) {
-    return NULL;
+    struct fb *worst = NULL;
+    while (list != NULL) {
+        if (list->size >= size) {
+            if (worst == NULL || worst->size < list->size) {
+                worst = list;
+            }
+        }
+        list = list->next;
+    }
+    return worst;
 }
