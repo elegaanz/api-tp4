@@ -99,12 +99,12 @@ void *mem_alloc(size_t taille) {
     }
 
     // TODO: align the new fb
-    struct fb *new_fb = b + sizeof(fb) + taille;
-    new_fb->taille = b->taille - taille - sizeof(fb);
+    struct fb *new_fb = b + sizeof(struct fb) + taille;
+    new_fb->size = b->size - taille - sizeof(struct fb);
     new_fb->next = NULL;
     b->next = new_fb;
 
-    return fb + sizeof(struct fb);
+    return new_fb + sizeof(struct fb);
 }
 
 void mem_free(void *mem) {}
