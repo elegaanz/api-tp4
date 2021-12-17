@@ -101,27 +101,31 @@ void *mem_alloc(size_t taille) {
     return NULL;
   }
 
-  // TODO: align the new fb
-
-  // la nouvelle zone commencera à la fin de l'espace libre
-  struct fb *new_fb = (void*)b + b->size + sizeof(struct fb);
-  void *end_address = get_system_memory_addr() + get_system_memory_size();
-  if ((void*)new_fb + sizeof(struct fb) < end_address) {
-    // le nouveau bloc dispose de tout l'espace libre du bloc précédent,
-    // moins ce qui viens d'être alloué, et l'espace nécessaire pour enregistrer
-    // l'en tête du bloc
-    new_fb->size = taille - sizeof(struct fb);
-    // tout l'espace libre est passé au nouveau bloc
-    b->size = 0;
-    // on modifie la liste chainée pour passer de 
-    //     b -> c
-    // à
-    //     b -> new_fb -> c 
-    new_fb->next = b->next;
-    b->next = new_fb;
+  b->size = taille;
+  if (b->next == NULL) {
+    b->next = (struct fb*)((void*)b + taille + sizeof(struct fb));
+    b->next->size = 0;
+    b->next->next = NULL;
   } else {
-    b->size -= taille;
-    b->next = NULL;
+    // on est dans cette configuration
+    // |                     b           |   b->next  |
+    // | header | espace |   espace pas  | header | … |
+    // |        | alloué | encore occupé |        |   |
+    //
+    // on va essayer de ne pas perdre l'espace pas encore occupé
+    // pour ça, si on a la place, on ajoute une nouvelle zone libre
+    // entre b et b->next
+    //
+    // si on a pas assez de place, tant pis, on perdra un peu de mémoire
+
+    // TODO: align the new fb
+    struct fb* new_next = (void*)b + taille;
+    // on a la place pour ajouter
+    if (new_next <= b->next - 1) {
+        new_next->size = 0; // bloc libre
+        new_next->next = b->next;
+        b->next = new_next;
+    }
   }
 
   return (void*)b + sizeof(struct fb);
