@@ -52,9 +52,10 @@ struct fb {
 
 size_t unused_block_size(struct fb *block) {
     if (block->next == NULL) {
-        return get_system_memory_addr() + get_system_memory_size() - (void*)block + sizeof(struct fb);
+        return get_system_memory_addr() + get_system_memory_size()
+            - (void*)block - sizeof(struct fb);
     } else {
-        return (void*)block->next - (void*)block + sizeof(struct fb);
+        return (void*)block->next - (void*)block - sizeof(struct fb);
     }
 }
 
@@ -95,8 +96,7 @@ void mem_fit(mem_fit_function_t *f) { get_header()->fit = f; }
 
 void *mem_alloc(size_t taille) {
   // Insère une nouvelle zone dans une zone où il y assez de place pour ça
-  struct fb *b = get_header()->fit(get_list(), taille); // on trouve une zone qui a encore assez d'espace libre
-  // TODO: prendre en compte qu'il faut un peu de place pour le fb lui meme quand on cherche une zone assez grande
+  struct fb *b = get_header()->fit(get_list(), sizeof(struct fb) + taille); // on trouve une zone qui a encore assez d'espace libre
   if (b == NULL) {
     return NULL;
   }
@@ -152,7 +152,7 @@ void mem_free(void *mem) {
 
 struct fb *mem_fit_first(struct fb *list, size_t size) {
   while (list != NULL) {
-    if (unused_block_size(list) >= size) {
+    if (list->size == 0 && unused_block_size(list) >= size) {
       return list;
     }
     list = list->next;
