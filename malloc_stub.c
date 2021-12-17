@@ -18,6 +18,7 @@ static void init() {
     static int first = 1;
 
     if (first) {
+        dprintf("Création d'un tas de %lu octets\n", get_memory_size());
         mem_init(get_memory_adr(), get_memory_size());
         first = 0;
     }
@@ -60,7 +61,9 @@ void *realloc(void *ptr, size_t size) {
     dprintf("Reallocation de la zone en %lx\n", (unsigned long)ptr);
     if (!ptr) {
         dprintf(" Realloc of NULL pointer\n");
-        return mem_alloc(size);
+        void *p = mem_alloc(size);
+        dprintf("tout c'est bien passé, on a alloué %lu (%p)\n", size, p);
+        return p;
     }
     if (mem_get_size(ptr) >= size) {
         dprintf(" Useless realloc\n");

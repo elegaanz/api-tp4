@@ -40,6 +40,7 @@ int main(int argc, char *argv[]) {
     *ptr2 = 86;
     ptr3 = mem_alloc(64);
     *ptr3 = 651;
+    printf("%d %d %d\n", *ptr1, *ptr2, *ptr3);
     mem_free(ptr2);
     mem_free(ptr1);
     ptr2 = mem_alloc(64);

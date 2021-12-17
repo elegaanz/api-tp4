@@ -23,8 +23,8 @@
    Elle peut bien évidemment être complétée
 */
 struct allocator_header {
-    size_t memory_size;
-    mem_fit_function_t *fit;
+  size_t memory_size;
+  mem_fit_function_t *fit;
 };
 
 /* La seule variable globale autorisée
@@ -36,118 +36,128 @@ static void *memory_addr;
 static inline void *get_system_memory_addr() { return memory_addr; }
 
 static inline struct allocator_header *get_header() {
-    struct allocator_header *h;
-    h = get_system_memory_addr();
-    return h;
+  struct allocator_header *h;
+  h = get_system_memory_addr();
+  return h;
 }
 
 static inline size_t get_system_memory_size() {
-    return get_header()->memory_size;
+  return get_header()->memory_size;
 }
 
 struct fb {
-    /// La taille de l'espace libre en octets
-    /// La taille du free block lui-même n'est pas comprise
-    size_t size;
-    struct fb *next;
+  size_t size;
+  struct fb *next;
 };
+
+size_t unused_block_size(struct fb *block) {
+    if (block->next == NULL) {
+        return get_system_memory_addr() + get_system_memory_size() - (void*)block + sizeof(struct fb);
+    } else {
+        return (void*)block->next - (void*)block + sizeof(struct fb);
+    }
+}
 
 /// Renvoie la tête de la liste des free blocks
 struct fb *get_list() {
-    return memory_addr + sizeof(struct allocator_header);
-}
-
-/// Renvoie la taille totale (alloué + pas alloué) de ce bloc
-size_t get_total_size(struct fb *block) {
-    if (block->next != NULL) {
-        return block->next - block + sizeof(struct fb);
-    } else {
-        return ((size_t)get_system_memory_addr() + get_system_memory_size()) - (size_t)block + sizeof(struct fb);
-    }
+  return memory_addr + sizeof(struct allocator_header);
 }
 
 void mem_init(void *mem, size_t taille) {
-    memory_addr = mem;
-    *(size_t *)memory_addr = taille;
-    /* On vérifie qu'on a bien enregistré les infos et qu'on
-     * sera capable de les récupérer par la suite
-     */
-    assert(mem == get_system_memory_addr());
-    assert(taille == get_system_memory_size());
-    mem_fit(&mem_fit_first);
+  memory_addr = mem;
+  *(size_t *)memory_addr = taille;
+  /* On vérifie qu'on a bien enregistré les infos et qu'on
+   * sera capable de les récupérer par la suite
+   */
+  assert(mem == get_system_memory_addr());
+  assert(taille == get_system_memory_size());
+  mem_fit(&mem_fit_first);
 
-    // On initialise le premier free block
-    struct fb *head = get_list();
-    head->size = taille - sizeof(struct allocator_header) - sizeof(struct fb);
-    head->next = NULL;
+  // On initialise le premier free block
+  struct fb *head = get_list();
+  head->size = 0;
+  head->next = NULL;
 }
 
 void mem_show(void (*print)(void *, size_t, int)) {
-    struct fb *block = get_list();
-    while (block != NULL) {
-        print(block, block->size, block->size == get_total_size(block));
-        block = block->next;
-    }
+  struct fb *block = get_list();
+  while (block != NULL) {
+      int s = block->size;
+      if (s == 0) {
+          s = unused_block_size(block);
+      }
+    print(block, s, block->size == 0);
+    block = block->next;
+  }
 }
 
 void mem_fit(mem_fit_function_t *f) { get_header()->fit = f; }
 
 void *mem_alloc(size_t taille) {
-    struct fb *b = get_header()->fit(get_list(), taille);
-    if (b == NULL) {
-        return NULL;
-    }
+  // Insère une nouvelle zone dans une zone où il y assez de place pour ça
+  struct fb *b = get_header()->fit(get_list(), taille); // on trouve une zone qui a encore assez d'espace libre
+  // TODO: prendre en compte qu'il faut un peu de place pour le fb lui meme quand on cherche une zone assez grande
+  if (b == NULL) {
+    return NULL;
+  }
 
-    // TODO: align the new fb
-    struct fb *new_fb = b + sizeof(struct fb) + taille;
-    size_t old_size = b->size;
-    void *end_address = get_system_memory_addr() + get_system_memory_size();
-    if (new_fb + sizeof(struct fb) < (struct fb*)end_address) {
-        new_fb->size = b->size - taille - sizeof(struct fb);
-        b->size = 0;
-        new_fb->next = b->next;
-        b->next = new_fb;
-    } else {
-        b->size -= taille;
-        b->next = NULL;
-    }
+  // TODO: align the new fb
 
-    return b + old_size + sizeof(struct fb);
+  // la nouvelle zone commencera à la fin de l'espace libre
+  struct fb *new_fb = (void*)b + b->size + sizeof(struct fb);
+  void *end_address = get_system_memory_addr() + get_system_memory_size();
+  if ((void*)new_fb + sizeof(struct fb) < end_address) {
+    // le nouveau bloc dispose de tout l'espace libre du bloc précédent,
+    // moins ce qui viens d'être alloué, et l'espace nécessaire pour enregistrer
+    // l'en tête du bloc
+    new_fb->size = taille - sizeof(struct fb);
+    // tout l'espace libre est passé au nouveau bloc
+    b->size = 0;
+    // on modifie la liste chainée pour passer de 
+    //     b -> c
+    // à
+    //     b -> new_fb -> c 
+    new_fb->next = b->next;
+    b->next = new_fb;
+  } else {
+    b->size -= taille;
+    b->next = NULL;
+  }
+
+  return (void*)b + sizeof(struct fb);
 }
 
 void mem_free(void *mem) {
+  struct fb *firstBlock = get_list();
+  size_t adr = (size_t)mem - sizeof(size_t);
+  struct fb *nextBlock;
 
-    struct fb *firstBlock = get_list();
-    size_t adr = (size_t) mem - sizeof(size_t);
-    struct fb *nextBlock;
+  if (firstBlock == (struct fb *)adr) {
+    // firstBlock->size = get_total_size(firstBlock);
+    return;
+  }
 
-    if(firstBlock == (struct fb*) adr)
-    {
-        firstBlock->size = get_total_size(firstBlock);
-        return;
-    }
+  while ((firstBlock->next != (struct fb *)adr) && (firstBlock->next != NULL)) {
+    firstBlock = firstBlock->next;
+  }
 
-    while ((firstBlock->next != (struct fb*)adr) && (firstBlock->next != NULL)){
-        firstBlock = firstBlock->next;
-    }
-
-    nextBlock = firstBlock->next;
-    if (nextBlock != NULL) {
-        firstBlock->size = get_total_size(firstBlock) + sizeof(struct fb);
-        firstBlock->next = nextBlock->next;
-    } else {
-        firstBlock->size = get_total_size(firstBlock);
-    }
+  nextBlock = firstBlock->next;
+  if (nextBlock != NULL) {
+    // firstBlock->size = get_total_size(firstBlock) + sizeof(struct fb);
+    firstBlock->next = nextBlock->next;
+  } else {
+    // firstBlock->size = get_total_size(firstBlock);
+  }
 }
 
 struct fb *mem_fit_first(struct fb *list, size_t size) {
-    while (list != NULL) {
-        if (list->size >= size) {
-            return list;
-        }
-        list = list->next;
+  while (list != NULL) {
+    if (unused_block_size(list) >= size) {
+      return list;
     }
-    return NULL;
+    list = list->next;
+  }
+  return NULL;
 }
 
 /* Fonction à faire dans un second temps
@@ -158,35 +168,35 @@ struct fb *mem_fit_first(struct fb *list, size_t size) {
  * (ou en discuter avec l'enseignant)
  */
 size_t mem_get_size(void *zone) {
-    struct fb *block = zone - sizeof(struct fb);
-    return get_total_size(block);
+  struct fb *block = zone - sizeof(struct fb);
+  return block->size;
 }
 
 /* Fonctions facultatives
  * autres stratégies d'allocation
  */
 struct fb *mem_fit_best(struct fb *list, size_t size) {
-    struct fb *best = NULL;
-    while (list != NULL) {
-        if (list->size >= size) {
-            if (best == NULL || best->size > list->size) {
-                best = list;
-            }
-        }
-        list = list->next;
+  struct fb *best = NULL;
+  while (list != NULL) {
+    if (list->size >= size) {
+      if (best == NULL || best->size > list->size) {
+        best = list;
+      }
     }
-    return best;
+    list = list->next;
+  }
+  return best;
 }
 
 struct fb *mem_fit_worst(struct fb *list, size_t size) {
-    struct fb *worst = NULL;
-    while (list != NULL) {
-        if (list->size >= size) {
-            if (worst == NULL || worst->size < list->size) {
-                worst = list;
-            }
-        }
-        list = list->next;
+  struct fb *worst = NULL;
+  while (list != NULL) {
+    if (list->size >= size) {
+      if (worst == NULL || worst->size < list->size) {
+        worst = list;
+      }
     }
-    return worst;
+    list = list->next;
+  }
+  return worst;
 }
