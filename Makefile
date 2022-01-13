@@ -28,7 +28,7 @@ $(PROGRAMS) libmalloc.so: %: mem.o common.o
 
 # seconde partie du sujet
 libmalloc.so: malloc_stub.o
-	$(CC) -shared -Wl,-soname,$@ $^ -o $@
+	$(CC) -g -shared -Wl,-soname,$@ $^ -o $@
 
 test_ls: libmalloc.so
 	LD_PRELOAD=./libmalloc.so ls

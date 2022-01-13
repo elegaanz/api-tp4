@@ -51,12 +51,12 @@ struct fb {
 };
 
 size_t unused_block_size(struct fb *block) {
-    if (block->next == NULL) {
-        return get_system_memory_addr() + get_system_memory_size()
-            - (void*)block - sizeof(struct fb);
-    } else {
-        return (void*)block->next - (void*)block - sizeof(struct fb);
-    }
+  if (block->next == NULL) {
+    return get_system_memory_addr() + get_system_memory_size() - (void *)block -
+           sizeof(struct fb);
+  } else {
+    return (void *)block->next - (void *)block - sizeof(struct fb);
+  }
 }
 
 /// Renvoie la tête de la liste des free blocks
@@ -83,10 +83,10 @@ void mem_init(void *mem, size_t taille) {
 void mem_show(void (*print)(void *, size_t, int)) {
   struct fb *block = get_list();
   while (block != NULL) {
-      int s = block->size;
-      if (s == 0) {
-          s = unused_block_size(block);
-      }
+    int s = block->size;
+    if (s == 0) {
+      s = unused_block_size(block);
+    }
     print(block, s, block->size == 0);
     block = block->next;
   }
@@ -96,14 +96,17 @@ void mem_fit(mem_fit_function_t *f) { get_header()->fit = f; }
 
 void *mem_alloc(size_t taille) {
   // Insère une nouvelle zone dans une zone où il y assez de place pour ça
-  struct fb *b = get_header()->fit(get_list(), sizeof(struct fb) + taille); // on trouve une zone qui a encore assez d'espace libre
+  struct fb *b = get_header()->fit(
+      get_list(),
+      sizeof(struct fb) +
+          taille); // on trouve une zone qui a encore assez d'espace libre
   if (b == NULL) {
     return NULL;
   }
 
   b->size = taille;
   if (b->next == NULL) {
-    b->next = (struct fb*)((void*)b + taille + sizeof(struct fb));
+    b->next = (struct fb *)((void *)b + taille + sizeof(struct fb));
     b->next->size = 0;
     b->next->next = NULL;
   } else {
@@ -118,26 +121,28 @@ void *mem_alloc(size_t taille) {
     //
     // si on a pas assez de place, tant pis, on perdra un peu de mémoire
 
-    // TODO: align the new fb
-    struct fb* new_next = (void*)b + taille;
+    struct fb *new_next = (void *)b + taille;
+    // alignement
+    new_next =
+        (struct fb *)(((size_t)new_next + (ALIGNMENT - 1)) & ~(ALIGNMENT - 1));
     // on a la place pour ajouter
     if (new_next <= b->next - 1) {
-        new_next->size = 0; // bloc libre
-        new_next->next = b->next;
-        b->next = new_next;
+      new_next->size = 0; // bloc libre
+      new_next->next = b->next;
+      b->next = new_next;
     }
   }
 
-  return (void*)b + sizeof(struct fb);
+  return (void *)b + sizeof(struct fb);
 }
 
 void mem_free(void *mem) {
   struct fb *firstBlock = mem - sizeof(struct fb);
-  struct fb *nextBlock = firstBlock ->next;
+  struct fb *nextBlock = firstBlock->next;
   firstBlock->size = 0;
-  if (nextBlock != NULL) 
-    if(nextBlock->size == 0)
-        firstBlock->next = nextBlock ->next; 
+  if (nextBlock != NULL)
+    if (nextBlock->size == 0)
+      firstBlock->next = nextBlock->next;
 }
 
 struct fb *mem_fit_first(struct fb *list, size_t size) {
